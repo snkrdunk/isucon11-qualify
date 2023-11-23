@@ -85,13 +85,14 @@ type GetIsuListResponse struct {
 }
 
 type IsuCondition struct {
-	ID         int       `db:"id"`
-	JIAIsuUUID string    `db:"jia_isu_uuid"`
-	Timestamp  time.Time `db:"timestamp"`
-	IsSitting  bool      `db:"is_sitting"`
-	Condition  string    `db:"condition"`
-	Message    string    `db:"message"`
-	CreatedAt  time.Time `db:"created_at"`
+	ID               int            `db:"id"`
+	JIAIsuUUID       string         `db:"jia_isu_uuid"`
+	Timestamp        time.Time      `db:"timestamp"`
+	IsSitting        bool           `db:"is_sitting"`
+	Condition        string         `db:"condition"`
+	Message          string         `db:"message"`
+	CreatedAt        time.Time      `db:"created_at"`
+	ConditionSummary sql.NullString `db:"condition_summary"`
 }
 
 type MySQLConnectionEnv struct {
@@ -1023,21 +1024,32 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 	conditions := []IsuCondition{}
 	var err error
 
+	conditionLevels := []string{}
+	for k := range conditionLevel {
+		conditionLevels = append(conditionLevels, k)
+	}
+
+	//log.Printf("-------------------------- %+v", conditionLevels)
+
 	if startTime.IsZero() {
-		err = db.Select(&conditions,
-			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
-				"	AND `timestamp` < ?"+
-				"	ORDER BY `timestamp` DESC",
-			jiaIsuUUID, endTime,
-		)
+		q, args, err := sqlx.In("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
+			"	AND `timestamp` < ?"+
+			"	AND `condition_summary` IN (?)"+
+			"	ORDER BY `timestamp` DESC LIMIT ?", jiaIsuUUID, endTime, conditionLevels, limit)
+		if err != nil {
+			return nil, fmt.Errorf("db error: %v", err)
+		}
+		err = db.Select(&conditions, q, args...)
 	} else {
-		err = db.Select(&conditions,
-			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
-				"	AND `timestamp` < ?"+
-				"	AND `timestamp` >= ?"+
-				"	ORDER BY `timestamp` DESC",
-			jiaIsuUUID, endTime, startTime,
-		)
+		q, args, err := sqlx.In("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
+			"	AND `timestamp` < ?"+
+			"	AND `timestamp` >= ?"+
+			"	AND `condition_summary` IN (?)"+
+			"	ORDER BY `timestamp` DESC LIMIT ?", jiaIsuUUID, endTime, startTime, conditionLevels, limit)
+		if err != nil {
+			return nil, fmt.Errorf("db error: %v", err)
+		}
+		err = db.Select(&conditions, q, args...)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("db error: %v", err)
@@ -1280,12 +1292,13 @@ func bulkInsertIsuCondition(tx *sqlx.Tx, isuConditions []IsuCondition) error {
 	if len(isuConditions) == 0 {
 		return nil
 	}
-	query := "INSERT INTO `isu_condition`(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`) VALUES "
+	query := "INSERT INTO `isu_condition`(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`, `condition_summary`) VALUES "
 	conditionArgs := []any{}
 	for i := range isuConditions {
 		cond := isuConditions[i]
-		conditionArgs = append(conditionArgs, cond.JIAIsuUUID, cond.Timestamp, cond.IsSitting, cond.Condition, cond.Message)
-		query += "(?, ?, ?, ?, ?)"
+		aa, _ := calculateConditionLevel(cond.Condition)
+		conditionArgs = append(conditionArgs, cond.JIAIsuUUID, cond.Timestamp, cond.IsSitting, cond.Condition, cond.Message, aa)
+		query += "(?, ?, ?, ?, ?, ?)"
 		if i == len(isuConditions)-1 {
 			break
 		}
