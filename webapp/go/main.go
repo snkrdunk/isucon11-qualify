@@ -1135,13 +1135,16 @@ func getTrend(c echo.Context) error {
 		// 			}
 		// 		}
 		isuConditions := make([]IsuCondition, 0, len(jiaIsuUUIDs))
+		c.Logger().Errorf("jiaIsuUUIDs length: %v", len(jiaIsuUUIDs))
 		for _, jiaIsuUUID := range jiaIsuUUIDs {
 			v, ok := trendCache.Load(jiaIsuUUID)
 			if !ok {
+				c.Logger().Errorf("trendCache.Load(jiaIsuUUID) is error. v is %v", v)
 				continue
 			}
 			cond, ok := v.(IsuCondition)
 			if !ok {
+				c.Logger().Errorf("v.(IsuCondition) is error. v is %v", v)
 				continue
 			}
 			isuConditions = append(isuConditions, cond)
