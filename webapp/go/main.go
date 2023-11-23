@@ -334,6 +334,12 @@ func postInitialize(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	go func() {
+		if _, err := http.Get("http://192.168.0.20:9000/api/group/collect"); err != nil {
+			log.Printf("failed to communicate with pprotein: %v", err)
+		}
+	}()
+
 	return c.JSON(http.StatusOK, InitializeResponse{
 		Language: "go",
 	})
