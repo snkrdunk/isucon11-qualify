@@ -1088,6 +1088,30 @@ func calculateConditionLevel(condition string) (string, error) {
 	return conditionLevel, nil
 }
 
+func getIsuConditionFromCache(jiaIsuUUID string) *IsuCondition {
+	v, ok := trendCache.Load(jiaIsuUUID)
+	if !ok {
+		return nil
+	}
+	cond, ok := v.(IsuCondition)
+	if !ok {
+		return nil
+	}
+	return &cond
+}
+
+func getIsuConditionFromDB(jiaIsuUUID string) *IsuCondition {
+	var condition IsuCondition
+	err := db.Get(&condition,
+		"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC LIMIT 1",
+		jiaIsuUUID,
+	)
+	if err != nil {
+		return nil
+	}
+	return &condition
+}
+
 // GET /api/trend
 // ISUの性格毎の最新のコンディション情報
 func getTrend(c echo.Context) error {
@@ -1116,8 +1140,18 @@ func getTrend(c echo.Context) error {
 		characterCriticalIsuConditions := []*TrendCondition{}
 
 		jiaIsuUUIDs := make([]string, len(isuList))
+		isuConditions := make([]IsuCondition, 0, len(jiaIsuUUIDs))
 		for i, isu := range isuList {
 			jiaIsuUUIDs[i] = isu.JIAIsuUUID
+			cond := getIsuConditionFromCache(isu.JIAIsuUUID)
+			if cond != nil {
+				isuConditions = append(isuConditions, *cond)
+				continue
+			}
+			cond = getIsuConditionFromDB(isu.JIAIsuUUID)
+			if cond != nil {
+				isuConditions = append(isuConditions, *cond)
+			}
 		}
 		// 		query, args, err := sqlx.In(`
 		// SELECT * FROM isu_condition WHERE id IN (
@@ -1134,22 +1168,22 @@ func getTrend(c echo.Context) error {
 		// 				return c.NoContent(http.StatusInternalServerError)
 		// 			}
 		// 		}
-		isuConditions := make([]IsuCondition, 0, len(jiaIsuUUIDs))
-		c.Logger().Errorf("jiaIsuUUIDs length: %v", len(jiaIsuUUIDs))
-		for _, jiaIsuUUID := range jiaIsuUUIDs {
-			c.Logger().Errorf("jiaIsuUUID is %v", jiaIsuUUID)
-			v, ok := trendCache.Load(jiaIsuUUID)
-			if !ok {
-				c.Logger().Errorf("trendCache.Load(jiaIsuUUID) is error. v is %v", v)
-				continue
-			}
-			cond, ok := v.(IsuCondition)
-			if !ok {
-				c.Logger().Errorf("v.(IsuCondition) is error. v is %v", v)
-				continue
-			}
-			isuConditions = append(isuConditions, cond)
-		}
+
+		// c.Logger().Errorf("jiaIsuUUIDs length: %v", len(jiaIsuUUIDs))
+		// for _, jiaIsuUUID := range jiaIsuUUIDs {
+		// 	c.Logger().Errorf("jiaIsuUUID is %v", jiaIsuUUID)
+		// 	v, ok := trendCache.Load(jiaIsuUUID)
+		// 	if !ok {
+		// 		c.Logger().Errorf("trendCache.Load(jiaIsuUUID) is error. v is %v", v)
+		// 		continue
+		// 	}
+		// 	cond, ok := v.(IsuCondition)
+		// 	if !ok {
+		// 		c.Logger().Errorf("v.(IsuCondition) is error. v is %v", v)
+		// 		continue
+		// 	}
+		// 	isuConditions = append(isuConditions, cond)
+		// }
 		getIsuID := func(jiaIsuUUID string) int {
 			for _, isu := range isuList {
 				if isu.JIAIsuUUID == jiaIsuUUID {
@@ -1293,7 +1327,6 @@ func bulkInsertIsuCondition(tx *sqlx.Tx, isuConditions []IsuCondition) error {
 		return isuConditions[j].Timestamp.Before(isuConditions[i].Timestamp)
 	})
 	trendCache.Store(isuConditions[0].JIAIsuUUID, isuConditions[0])
-	fmt.Println("trendCache.Store", isuConditions[0].JIAIsuUUID, isuConditions[0])
 	return nil
 }
 
