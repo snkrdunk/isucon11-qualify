@@ -1110,9 +1110,9 @@ func getTrend(c echo.Context) error {
 		characterWarningIsuConditions := []*TrendCondition{}
 		characterCriticalIsuConditions := []*TrendCondition{}
 
-		jiaIsuUUIDs := make([]string, 0, len(isuList))
-		for _, isu := range isuList {
-			jiaIsuUUIDs = append(jiaIsuUUIDs, isu.JIAIsuUUID)
+		jiaIsuUUIDs := make([]string, len(isuList))
+		for i, isu := range isuList {
+			jiaIsuUUIDs[i] = isu.JIAIsuUUID
 		}
 		query, args, err := sqlx.In(`
 SELECT * FROM isu_condition WHERE id IN (
