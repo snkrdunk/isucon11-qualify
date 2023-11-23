@@ -1137,6 +1137,7 @@ func getTrend(c echo.Context) error {
 		isuConditions := make([]IsuCondition, 0, len(jiaIsuUUIDs))
 		c.Logger().Errorf("jiaIsuUUIDs length: %v", len(jiaIsuUUIDs))
 		for _, jiaIsuUUID := range jiaIsuUUIDs {
+			c.Logger().Errorf("jiaIsuUUID is %v", jiaIsuUUID)
 			v, ok := trendCache.Load(jiaIsuUUID)
 			if !ok {
 				c.Logger().Errorf("trendCache.Load(jiaIsuUUID) is error. v is %v", v)
@@ -1292,6 +1293,7 @@ func bulkInsertIsuCondition(tx *sqlx.Tx, isuConditions []IsuCondition) error {
 		return isuConditions[j].Timestamp.Before(isuConditions[i].Timestamp)
 	})
 	trendCache.Store(isuConditions[0].JIAIsuUUID, isuConditions[0])
+	fmt.Println("trendCache.Store", isuConditions[0].JIAIsuUUID, isuConditions[0])
 	return nil
 }
 
