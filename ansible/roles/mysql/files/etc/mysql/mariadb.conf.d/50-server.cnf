@@ -78,6 +78,20 @@ expire_logs_days        = 10
 #binlog_do_db           = include_database_name
 #binlog_ignore_db       = exclude_database_name
 
+innodb_buffer_pool_size = 2G
+#innodb_buffer_pool_instances = 3
+innodb_buffer_pool_dump_pct = 100
+innodb_buffer_pool_load_at_startup = ON
+innodb_buffer_pool_dump_at_shutdown = ON
+
+#innodb_redo_log_capacity = 256M
+#innodb_log_buffer_size = 160M
+innodb_flush_log_at_timeout = 10 # seconds
+innodb_flush_log_at_trx_commit = 0
+
+innodb_flush_method = O_DIRECT_NO_FSYNC
+#innodb_use_native_aio = OFF
+
 #
 # * Security Features
 #
