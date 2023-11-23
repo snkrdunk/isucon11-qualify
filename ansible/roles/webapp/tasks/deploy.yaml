@@ -1,0 +1,13 @@
+- name: Deploy webapp
+  become: true
+  copy:
+    src: ../webapp/golang/app
+    dest: /home/isucon/private_isu/webapp/golang/
+  notify: restart_webapp
+- name: Deploy html templates
+  become: true
+  copy:
+    src: "{{ item }}"
+    dest: /home/isucon/private_isu/webapp/golang/templates/
+  with_fileglob:
+    - "../webapp/golang/templates/*"
