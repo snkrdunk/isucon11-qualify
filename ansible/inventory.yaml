@@ -15,4 +15,4 @@ all:
     db:
       hosts:
         db01:
-          ansible_host: 54.248.139.196
+          ansible_host: 43.207.252.83
