@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -51,6 +52,8 @@ var (
 	jiaJWTSigningKey *ecdsa.PublicKey
 
 	postIsuConditionTargetBaseURL string // JIAへのactivate時に登録する，ISUがconditionを送る先のURL
+
+	trendCache sync.Map
 )
 
 type Config struct {
@@ -205,6 +208,8 @@ func init() {
 	if err != nil {
 		log.Fatalf("failed to parse ECDSA public key: %v", err)
 	}
+
+	trendCache = sync.Map{}
 }
 
 func main() {
@@ -1114,20 +1119,32 @@ func getTrend(c echo.Context) error {
 		for i, isu := range isuList {
 			jiaIsuUUIDs[i] = isu.JIAIsuUUID
 		}
-		query, args, err := sqlx.In(`
-SELECT * FROM isu_condition WHERE id IN (
-	SELECT max(id) FROM isu_condition WHERE jia_isu_uuid IN (?) group by jia_isu_uuid
-)`, jiaIsuUUIDs)
-		if err != nil {
-			c.Logger().Error(err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-		isuConditions := []IsuCondition{}
-		if err = db.Select(&isuConditions, query, args...); err != nil {
-			if err != sql.ErrNoRows {
-				c.Logger().Errorf("db error: %v", err)
-				return c.NoContent(http.StatusInternalServerError)
+		// 		query, args, err := sqlx.In(`
+		// SELECT * FROM isu_condition WHERE id IN (
+		// 	SELECT max(id) FROM isu_condition WHERE jia_isu_uuid IN (?) group by jia_isu_uuid
+		// )`, jiaIsuUUIDs)
+		// 		if err != nil {
+		// 			c.Logger().Error(err)
+		// 			return c.NoContent(http.StatusInternalServerError)
+		// 		}
+		// 		isuConditions := []IsuCondition{}
+		// 		if err = db.Select(&isuConditions, query, args...); err != nil {
+		// 			if err != sql.ErrNoRows {
+		// 				c.Logger().Errorf("db error: %v", err)
+		// 				return c.NoContent(http.StatusInternalServerError)
+		// 			}
+		// 		}
+		isuConditions := make([]IsuCondition, 0, len(jiaIsuUUIDs))
+		for _, jiaIsuUUID := range jiaIsuUUIDs {
+			v, ok := trendCache.Load(jiaIsuUUID)
+			if !ok {
+				continue
 			}
+			cond, ok := v.(IsuCondition)
+			if !ok {
+				continue
+			}
+			isuConditions = append(isuConditions, cond)
 		}
 		getIsuID := func(jiaIsuUUID string) int {
 			for _, isu := range isuList {
@@ -1268,6 +1285,10 @@ func bulkInsertIsuCondition(tx *sqlx.Tx, isuConditions []IsuCondition) error {
 	if _, err := tx.Exec(query, conditionArgs...); err != nil {
 		return err
 	}
+	sort.Slice(isuConditions, func(i, j int) bool {
+		return isuConditions[j].Timestamp.Before(isuConditions[i].Timestamp)
+	})
+	trendCache.Store(isuConditions[0].JIAIsuUUID, isuConditions[0])
 	return nil
 }
 
