@@ -1,13 +1,14 @@
 - name: Deploy webapp
   become: true
   copy:
-    src: ../webapp/golang/app
-    dest: /home/isucon/private_isu/webapp/golang/
+    src: ../webapp/go/isucondition
+    dest: /home/isucon/webapp/go/
   notify: restart_webapp
-- name: Deploy html templates
+- name: Deploy sql files
   become: true
   copy:
     src: "{{ item }}"
-    dest: /home/isucon/private_isu/webapp/golang/templates/
-  with_fileglob:
-    - "../webapp/golang/templates/*"
+    dest: /home/isucon/webapp/sql/
+  with_items:
+    - ../webapp/sql/init.sh
+    - ../webapp/sql/0_Schema.sql
