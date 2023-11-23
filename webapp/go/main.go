@@ -1198,6 +1198,7 @@ func postIsuCondition(c echo.Context) error {
 		return c.String(http.StatusNotFound, "not found: isu")
 	}
 
+	isuConditions := make([]IsuCondition, 0, len(req))
 	for _, cond := range req {
 		timestamp := time.Unix(cond.Timestamp, 0)
 
@@ -1205,16 +1206,18 @@ func postIsuCondition(c echo.Context) error {
 			return c.String(http.StatusBadRequest, "bad request body")
 		}
 
-		_, err = tx.Exec(
-			"INSERT INTO `isu_condition`"+
-				"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)"+
-				"	VALUES (?, ?, ?, ?, ?)",
-			jiaIsuUUID, timestamp, cond.IsSitting, cond.Condition, cond.Message)
-		if err != nil {
-			c.Logger().Errorf("db error: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
+		isuConditions = append(isuConditions, IsuCondition{
+			JIAIsuUUID: jiaIsuUUID,
+			Timestamp:  timestamp,
+			IsSitting:  cond.IsSitting,
+			Condition:  cond.Condition,
+			Message:    cond.Message,
+		})
+	}
 
+	if err := bulkInsertIsuCondition(tx, isuConditions); err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	err = tx.Commit()
@@ -1224,6 +1227,27 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusAccepted)
+}
+
+func bulkInsertIsuCondition(tx *sqlx.Tx, isuConditions []IsuCondition) error {
+	if len(IsuCondition) == 0 {
+		return nil
+	}
+	query := "INSERT INTO isu_condition(jia_isu_uuid, timestamp, is_sitting, condition, message) VALUES "
+	conditionArgs := []any{}
+	for i := range isuConditions {
+		cond := isuConditions[i]
+		conditionArgs = append(conditionArgs, cond.JIAIsuUUID, cond.Timestamp, cond.IsSitting, cond.Condition, cond.Message)
+		query += "(?, ?, ?, ?, ?)"
+		if i == len(isuConditions)-1 {
+			break
+		}
+		query += ","
+	}
+	if _, err := tx.Exec(query, conditionArgs...); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ISUのコンディションの文字列がcsv形式になっているか検証
