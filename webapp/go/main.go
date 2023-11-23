@@ -802,9 +802,9 @@ func generateIsuGraphResponse(jiaIsuUUID string, graphDate time.Time) ([]GraphRe
 	timestampsInThisHour := []int64{}
 	var startTimeInThisHour time.Time
 
-	query := "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC"
+	query := "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? AND `timestamp` >= ? AND `timestamp` < ? ORDER BY `timestamp` ASC"
 	var conditions []IsuCondition
-	if err := db.Select(&conditions, query, jiaIsuUUID); err != nil {
+	if err := db.Select(&conditions, query, jiaIsuUUID, graphDate, graphDate.Add(24*time.Hour)); err != nil {
 		return nil, fmt.Errorf("db error: %v", err)
 	}
 
@@ -900,6 +900,7 @@ func generateIsuGraphResponse(jiaIsuUUID string, graphDate time.Time) ([]GraphRe
 func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
 	conditionsCount := map[string]int{"is_broken": 0, "is_dirty": 0, "is_overweight": 0}
 	rawScore := 0
+	sittingCount := 0
 	for _, condition := range isuConditions {
 		badConditionsCount := 0
 
@@ -924,10 +925,7 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 		} else {
 			rawScore += scoreConditionLevelInfo
 		}
-	}
 
-	sittingCount := 0
-	for _, condition := range isuConditions {
 		if condition.IsSitting {
 			sittingCount++
 		}
