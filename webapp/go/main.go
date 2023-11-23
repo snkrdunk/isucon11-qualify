@@ -1175,37 +1175,6 @@ func getTrend(c echo.Context) error {
 				isuConditions = append(isuConditions, *cond)
 			}
 		}
-		// 		query, args, err := sqlx.In(`
-		// SELECT * FROM isu_condition WHERE id IN (
-		// 	SELECT max(id) FROM isu_condition WHERE jia_isu_uuid IN (?) group by jia_isu_uuid
-		// )`, jiaIsuUUIDs)
-		// 		if err != nil {
-		// 			c.Logger().Error(err)
-		// 			return c.NoContent(http.StatusInternalServerError)
-		// 		}
-		// 		isuConditions := []IsuCondition{}
-		// 		if err = db.Select(&isuConditions, query, args...); err != nil {
-		// 			if err != sql.ErrNoRows {
-		// 				c.Logger().Errorf("db error: %v", err)
-		// 				return c.NoContent(http.StatusInternalServerError)
-		// 			}
-		// 		}
-
-		// c.Logger().Errorf("jiaIsuUUIDs length: %v", len(jiaIsuUUIDs))
-		// for _, jiaIsuUUID := range jiaIsuUUIDs {
-		// 	c.Logger().Errorf("jiaIsuUUID is %v", jiaIsuUUID)
-		// 	v, ok := trendCache.Load(jiaIsuUUID)
-		// 	if !ok {
-		// 		c.Logger().Errorf("trendCache.Load(jiaIsuUUID) is error. v is %v", v)
-		// 		continue
-		// 	}
-		// 	cond, ok := v.(IsuCondition)
-		// 	if !ok {
-		// 		c.Logger().Errorf("v.(IsuCondition) is error. v is %v", v)
-		// 		continue
-		// 	}
-		// 	isuConditions = append(isuConditions, cond)
-		// }
 		getIsuID := func(jiaIsuUUID string) int {
 			for _, isu := range isuList {
 				if isu.JIAIsuUUID == jiaIsuUUID {
