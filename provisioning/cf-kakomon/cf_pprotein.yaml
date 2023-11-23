@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: isucon pprotein
+
+Parameters:
+  VpcId:
+    Description: "AWS EC2 VPC ID"
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Description: "AWS EC2 Subnet ID"
+    Type: AWS::EC2::Subnet::Id
+  KeyPairName:
+    Description: "Amazon EC2 Key Pair"
+    Type: AWS::EC2::KeyPair::KeyName
+  GitHubUsername:
+    Description: "GitHub Username for SSH public key"
+    Type: String
+
+Resources:
+  MySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH, HTTP, HTTPS access
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: -1
+          CidrIp: 192.168.0.0/16
+        - IpProtocol: tcp
+          FromPort: 9000
+          ToPort: 9000
+          CidrIp: 0.0.0.0/0
+
+  PproteinInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: c5.large
+      KeyName: !Ref KeyPairName
+      ImageId: ami-0796be4f4814fc3d5
+      SubnetId: !Ref SubnetId
+      PrivateIpAddress: '192.168.0.20'
+      SecurityGroupIds:
+        - !Ref MySecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          GITHUB_USER=${GitHubUsername}
+          mkdir -p /home/isucon/.ssh
+          curl -s https://github.com/$GITHUB_USER.keys >> /home/isucon/.ssh/authorized_keys
+          chown -R isucon:isucon /home/isucon/.ssh
+          chmod 600 /home/isucon/.ssh/authorized_keys
+      Tags:
+        - Key: Name
+          Value: pprotein
+
+  PproteinEIP:
+    Type: AWS::EC2::EIP
+
+  PproteinEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref PproteinInstance
+      EIP: !Ref PproteinEIP
