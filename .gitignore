@@ -1,1 +1,3 @@
 webapp/go/tmp/
+# Go workspace
+go.work
