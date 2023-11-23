@@ -1,6 +1,7 @@
 webapp/go/tmp/
 # Go workspace
 go.work
+go.work.sum
 
 .idea/
 .DS_Store
