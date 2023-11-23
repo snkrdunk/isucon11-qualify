@@ -1239,7 +1239,7 @@ func bulkInsertIsuCondition(tx *sqlx.Tx, isuConditions []IsuCondition) error {
 	if len(isuConditions) == 0 {
 		return nil
 	}
-	query := "INSERT INTO isu_condition(jia_isu_uuid, timestamp, is_sitting, condition, message) VALUES "
+	query := "INSERT INTO `isu_condition`(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`) VALUES "
 	conditionArgs := []any{}
 	for i := range isuConditions {
 		cond := isuConditions[i]
