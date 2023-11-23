@@ -1236,7 +1236,7 @@ func postIsuCondition(c echo.Context) error {
 }
 
 func bulkInsertIsuCondition(tx *sqlx.Tx, isuConditions []IsuCondition) error {
-	if len(IsuCondition) == 0 {
+	if len(isuConditions) == 0 {
 		return nil
 	}
 	query := "INSERT INTO isu_condition(jia_isu_uuid, timestamp, is_sitting, condition, message) VALUES "
