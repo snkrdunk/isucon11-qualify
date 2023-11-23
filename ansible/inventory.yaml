@@ -3,20 +3,16 @@ all:
     bench:
       hosts:
         bench01:
-          ansible_host: 13.114.243.119
+          ansible_host: 52.69.210.189
     nginx:
       hosts:
         nginx01:
-          ansible_host: 54.199.197.192
+          ansible_host: 54.248.139.196
     webapp:
       hosts:
         webapp01:
-          ansible_host: 54.199.197.192
+          ansible_host: 54.248.139.196
     db:
       hosts:
         db01:
-          ansible_host: 54.199.197.192
-    pprotein:
-      hosts:
-        pprotein01:
-          ansible_host: 52.192.207.248
+          ansible_host: 54.248.139.196
