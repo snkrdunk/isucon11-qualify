@@ -1116,7 +1116,7 @@ func getTrend(c echo.Context) error {
 		}
 		query, args, err := sqlx.In(`
 SELECT * FROM isu_condition WHERE id IN (
-	SELECT max(id) FROM isu_condition WHERE jia_isu_uuid IN (?) group by jia_isu_uuid;
+	SELECT max(id) FROM isu_condition WHERE jia_isu_uuid IN (?) group by jia_isu_uuid
 )`, jiaIsuUUIDs)
 		if err != nil {
 			c.Logger().Error(err)
