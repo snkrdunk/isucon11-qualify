@@ -1016,32 +1016,59 @@ func getIsuConditions(c echo.Context) error {
 	return c.JSON(http.StatusOK, conditionsResponse)
 }
 
+func targetConditionColumns(conditionLevel map[string]interface{}) []string {
+	var columns []string
+	for k := range conditionLevel {
+		switch k {
+		case "critical":
+			columns = append(columns, "is_dirty=true,is_overweight=true,is_broken=true")
+		case "info":
+			columns = append(columns, "is_dirty=false,is_overweight=false,is_broken=false")
+		case "warn":
+			columns = append(
+				columns,
+				"is_dirty=true,is_overweight=false,is_broken=false",
+				"is_dirty=false,is_overweight=true,is_broken=false",
+				"is_dirty=false,is_overweight=false,is_broken=true",
+				"is_dirty=true,is_overweight=true,is_broken=false",
+				"is_dirty=true,is_overweight=false,is_broken=true",
+				"is_dirty=false,is_overweight=true,is_broken=true",
+			)
+		}
+	}
+	return columns
+}
+
 // ISUのコンディションをDBから取得
 func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
 	limit int, isuName string) ([]*GetIsuConditionResponse, error) {
 
-	conditions := []IsuCondition{}
-	var err error
-
-	if startTime.IsZero() {
-		err = db.Select(&conditions,
-			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
-				"	AND `timestamp` < ?"+
-				"	ORDER BY `timestamp` DESC",
-			jiaIsuUUID, endTime,
-		)
-	} else {
-		err = db.Select(&conditions,
-			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
-				"	AND `timestamp` < ?"+
-				"	AND `timestamp` >= ?"+
-				"	ORDER BY `timestamp` DESC",
-			jiaIsuUUID, endTime, startTime,
-		)
+	query := "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? AND `timestamp` < ?"
+	args := []interface{}{jiaIsuUUID, endTime}
+	if !startTime.IsZero() {
+		query += " AND `timestamp` >= ?"
+		args = append(args, startTime)
 	}
+	query += " AND `condition` IN (?) ORDER BY `timestamp` DESC LIMIT ?"
+	args = append(args, targetConditionColumns(conditionLevel), limit)
+
+	query, args, err := sqlx.In(query, args...)
 	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("============================================================")
+	fmt.Println(query, args)
+	fmt.Println("============================================================")
+
+	conditions := []IsuCondition{}
+	if err := db.Select(&conditions, query, args...); err != nil {
 		return nil, fmt.Errorf("db error: %v", err)
 	}
+
+	fmt.Println("============================================================")
+	fmt.Println("conditions len:", len(conditions))
+	fmt.Println("============================================================")
 
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, c := range conditions {
@@ -1050,23 +1077,21 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 			continue
 		}
 
-		if _, ok := conditionLevel[cLevel]; ok {
-			data := GetIsuConditionResponse{
-				JIAIsuUUID:     c.JIAIsuUUID,
-				IsuName:        isuName,
-				Timestamp:      c.Timestamp.Unix(),
-				IsSitting:      c.IsSitting,
-				Condition:      c.Condition,
-				ConditionLevel: cLevel,
-				Message:        c.Message,
-			}
-			conditionsResponse = append(conditionsResponse, &data)
+		data := GetIsuConditionResponse{
+			JIAIsuUUID:     c.JIAIsuUUID,
+			IsuName:        isuName,
+			Timestamp:      c.Timestamp.Unix(),
+			IsSitting:      c.IsSitting,
+			Condition:      c.Condition,
+			ConditionLevel: cLevel,
+			Message:        c.Message,
 		}
+		conditionsResponse = append(conditionsResponse, &data)
 	}
 
-	if len(conditionsResponse) > limit {
-		conditionsResponse = conditionsResponse[:limit]
-	}
+	fmt.Println("============================================================")
+	fmt.Println("condition response len:", len(conditionsResponse))
+	fmt.Println("============================================================")
 
 	return conditionsResponse, nil
 }
