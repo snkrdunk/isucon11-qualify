@@ -345,6 +345,21 @@ func postInitialize(c echo.Context) error {
 		}
 	}()
 
+	// NOTE: cache trend
+	q := `
+SELECT * FROM isu_condition WHERE id IN (
+	SELECT max(id) FROM isu_condition group by jia_isu_uuid
+);
+	`
+	var conditions []IsuCondition
+	if err := db.Select(&conditions, q); err != nil {
+		c.Logger().Errorf("db error : %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	for _, condition := range conditions {
+		trendCache.Store(condition.JIAIsuUUID, condition)
+	}
+
 	return c.JSON(http.StatusOK, InitializeResponse{
 		Language: "go",
 	})
